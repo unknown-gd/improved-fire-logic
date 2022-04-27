@@ -14,7 +14,7 @@ do
     end
 end
 
-hook.Add("OnEntityWaterLevelChanged", "NoFireInWater", function( ent, old, new )
+hook.Add("OnEntityWaterLevelChanged", "No Fire In Water", function( ent, old, new )
     if (new > 1) and ent:IsOnFire() then
         ent:Extinguish()
     end
