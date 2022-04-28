@@ -1,9 +1,4 @@
 local addon_name = "No More Burning in Water"
-hook.Add("OnEntityWaterLevelChanged", addon_name, function( ent, old, new )
-    if (new > 1) and ent:IsOnFire() then
-        ent:Extinguish()
-    end
-end)
 
 do
 
@@ -11,17 +6,41 @@ do
     local bit_band = bit.band
 
     hook.Add("EntityTakeDamage", addon_name, function( ent, dmg )
-        if (bit_band( dmg:GetDamageType(), DMG_BURN ) == DMG_BURN) and ent:IsFlammable() then
-            if (ent:WaterLevel() < 1) then return end
-            if ent:IsOnFire() then
-                ent:Extinguish()
-            end
-
-            return true
+        if (bit_band( dmg:GetDamageType(), DMG_BURN ) == DMG_BURN) and ent:IsFlammable() and ent:IsOnFire() then
+            return hook.Run( "EntityBurns", ent, dmg )
         end
     end)
 
 end
+
+hook.Add("EntityBurns", "Extinguish in Water", function( ent )
+    if (ent:WaterLevel() > 0) then
+        ent:Extinguish()
+        return true
+    end
+end)
+
+local maxSpeed = physenv.GetPerformanceSettings().MaxVelocity * 0.6
+hook.Add("EntityBurns", "Extinguish on huge speed", function( ent )
+    local speed = 0
+    local extinguish_speed = maxSpeed
+    if ent:IsPlayer() then
+        speed = ent:GetVelocity():Length()
+        extinguish_speed = ent:GetRunSpeed() * 1.56
+    else
+
+        local phys = ent:GetPhysicsObject()
+        if IsValid( phys ) then
+            speed = phys:GetVelocity():Length()
+        end
+
+    end
+
+    if (speed >= extinguish_speed) then
+        ent:Extinguish()
+        return true
+    end
+end)
 
 do
 
