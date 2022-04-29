@@ -1,4 +1,4 @@
-local addon_name = "No More Burning in Water"
+local addon_name = "Better Fire Extinguishing"
 
 do
 
