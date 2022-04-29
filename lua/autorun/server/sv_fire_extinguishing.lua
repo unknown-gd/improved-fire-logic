@@ -1,4 +1,4 @@
-local addon_name = "Better Fire Extinguishing"
+local addon_name = "Fire Extinguishing"
 
 do
 
@@ -20,7 +20,12 @@ hook.Add("EntityBurns", "Extinguish in Water", function( ent )
     end
 end)
 
-local maxSpeed = physenv.GetPerformanceSettings().MaxVelocity * 0.6
+local maxSpeed = 600
+
+timer.Simple(0, function()
+    maxSpeed = physenv.GetPerformanceSettings().MaxVelocity * 0.6
+end)
+
 hook.Add("EntityBurns", "Extinguish on huge speed", function( ent )
     local speed = 0
     local extinguish_speed = maxSpeed
