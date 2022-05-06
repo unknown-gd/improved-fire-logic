@@ -112,7 +112,7 @@ do
             local CHAN_ITEM = CHAN_ITEM
 
             function ENTITY:Extinguish()
-                if (extinguish_snd) then
+                if self:IsOnFire() and (extinguish_snd) then
                     self:EmitSound( sound_path, math_random( 55, 65 ), math_random( 60, 180 ), 1, CHAN_ITEM )
                 end
 
