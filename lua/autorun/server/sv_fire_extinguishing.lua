@@ -1,64 +1,17 @@
 --[[
 
-    Title: Fire Extinguishing++
+    Title:Finally a normal fire behavior!
     Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=2805142659
     GitHub: https://github.com/PrikolMen/gmod_fire_extinguishing
     Author: https://steamcommunity.com/id/PrikolMen/
 
 --]]
 
-local addon_name = "Fire Extinguishing"
+local addon_name = 'Finally a normal fire behavior!'
 
 do
 
-    local DMG_BURN = DMG_BURN
-    local bit_band = bit.band
-
-    hook.Add("EntityTakeDamage", addon_name, function( ent, dmg )
-        if (bit_band( dmg:GetDamageType(), DMG_BURN ) == DMG_BURN) and ent:IsFlammable() and ent:IsOnFire() then
-            return hook.Run( "EntityBurns", ent, dmg )
-        end
-    end)
-
-end
-
-hook.Add("EntityBurns", "Extinguish in Water", function( ent )
-    if (ent:WaterLevel() > 0) then
-        ent:Extinguish()
-        return true
-    end
-end)
-
-local maxSpeed = 600
-
-timer.Simple(0, function()
-    maxSpeed = physenv.GetPerformanceSettings().MaxVelocity * 0.6
-end)
-
-hook.Add("EntityBurns", "Extinguish on huge speed", function( ent )
-    local speed = 0
-    local extinguish_speed = maxSpeed
-    if ent:IsPlayer() then
-        speed = ent:GetVelocity():Length()
-        extinguish_speed = ent:GetRunSpeed() * 1.56
-    else
-
-        local phys = ent:GetPhysicsObject()
-        if IsValid( phys ) then
-            speed = phys:GetVelocity():Length()
-        end
-
-    end
-
-    if (speed >= extinguish_speed) then
-        ent:Extinguish()
-        return true
-    end
-end)
-
-do
-
-    local ENTITY = FindMetaTable( "Entity" )
+    local ENTITY = FindMetaTable( 'Entity' )
 
     do
 
@@ -71,6 +24,7 @@ do
             [MAT_BLOODYFLESH] = true,
             [MAT_ALIENFLESH] = true,
             [MAT_ANTLION] = true,
+            -- Strange fact, but all sofas are made of earth :|
             [MAT_DIRT] = true
         }
 
@@ -91,6 +45,7 @@ do
         return self:IsFlammable()
     end
 
+    -- Ugh, I think this is a protection from overwriting...
     timer.Simple(0, function()
 
         -- New Ignite
@@ -111,17 +66,17 @@ do
 
         do
 
-            local extinguish_snd = CreateConVar( "extinguish_sound", "1", FCVAR_ARCHIVE + FCVAR_LUA_SERVER, " - Enable entites extinguishing sound", 0, 1 ):GetBool()
-            cvars.AddChangeCallback("extinguish_sound", function( name, old, new )
-                extinguish_snd = new == "1"
+            local extinguish_snd = CreateConVar( 'extinguish_sound', '1', FCVAR_ARCHIVE + FCVAR_LUA_SERVER, ' - Enable entites extinguishing sound', 0, 1 ):GetBool()
+            cvars.AddChangeCallback('extinguish_sound', function( name, old, new )
+                extinguish_snd = new == '1'
             end, addon_name)
 
-            local sound_path = "player/flame_out.ogg"
+            local sound_path = 'player/flame_out.ogg'
             local math_random = math.random
             local CHAN_ITEM = CHAN_ITEM
 
             function ENTITY:Extinguish()
-                if self:IsOnFire() and (extinguish_snd) then
+                if self:IsOnFire() and extinguish_snd then
                     self:EmitSound( sound_path, math_random( 55, 65 ), math_random( 60, 180 ), 1, CHAN_ITEM )
                 end
 
@@ -133,10 +88,31 @@ do
 
 end
 
-MsgN( "[" .. addon_name .. "] I'm ready!" )
+do
+
+    local bit_band = bit.band
+    local hook_Run = hook.Run
+    local DMG_BURN = DMG_BURN
+
+    hook.Add('EntityTakeDamage', addon_name, function( ent, dmg )
+        if (bit_band( dmg:GetDamageType(), DMG_BURN ) == DMG_BURN) and ent:IsFlammable() and ent:IsOnFire() then
+            return hook_Run( 'EntityBurns', ent, dmg )
+        end
+    end)
+
+end
+
+hook.Add('EntityBurns', 'Extinguish in Water', function( ent )
+    if (ent:WaterLevel() > 0) then
+        ent:Extinguish()
+        return true
+    end
+end)
+
+MsgN( '[' .. addon_name .. '] I\'m ready!' )
 timer.Simple(0, function()
-    if (vFireMessage  ~= nil) then
-        MsgN( "[" .. addon_name .. "] Oh, hello vFire!" )
-        vFireMessage( "Hello, " .. addon_name )
+    if (vFireMessage ~= nil) then
+        MsgN( '[' .. addon_name .. '] Oh, hello vFire!' )
+        vFireMessage( 'Hello, ' .. addon_name )
     end
 end)
