@@ -7,7 +7,12 @@
 
 --]]
 
-local addon_name = 'Finally a normal fire behavior!'
+local addonName = 'Finally a normal fire behavior!'
+
+-- gLua Refresh Protection
+pAddons = pAddons or {}
+if pAddons[ addonName ] then return end
+pAddons[ addonName ] = true
 
 do
 
@@ -69,7 +74,7 @@ do
             local extinguish_snd = CreateConVar( 'extinguish_sound', '1', FCVAR_ARCHIVE + FCVAR_LUA_SERVER, ' - Enable entites extinguishing sound', 0, 1 ):GetBool()
             cvars.AddChangeCallback('extinguish_sound', function( name, old, new )
                 extinguish_snd = new == '1'
-            end, addon_name)
+            end, addonName)
 
             local sound_path = 'player/flame_out.ogg'
             local math_random = math.random
@@ -94,7 +99,7 @@ do
     local hook_Run = hook.Run
     local DMG_BURN = DMG_BURN
 
-    hook.Add('EntityTakeDamage', addon_name, function( ent, dmg )
+    hook.Add('EntityTakeDamage', addonName, function( ent, dmg )
         if (bit_band( dmg:GetDamageType(), DMG_BURN ) == DMG_BURN) and ent:IsFlammable() and ent:IsOnFire() then
             return hook_Run( 'EntityBurns', ent, dmg )
         end
@@ -109,10 +114,10 @@ hook.Add('EntityBurns', 'Extinguish in Water', function( ent )
     end
 end)
 
-MsgN( '[' .. addon_name .. '] I\'m ready!' )
+MsgN( '[' .. addonName .. '] I\'m ready!' )
 timer.Simple(0, function()
     if (vFireMessage ~= nil) then
-        MsgN( '[' .. addon_name .. '] Oh, hello vFire!' )
-        vFireMessage( 'Hello, ' .. addon_name )
+        MsgN( '[' .. addonName .. '] Oh, hello vFire!' )
+        vFireMessage( 'Hello, ' .. addonName )
     end
 end)
