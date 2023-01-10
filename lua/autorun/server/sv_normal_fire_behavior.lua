@@ -9,11 +9,6 @@
 
 local addonName = 'Finally a normal fire behavior!'
 
--- gLua Refresh Protection
-pAddons = pAddons or {}
-if pAddons[ addonName ] then return end
-pAddons[ addonName ] = true
-
 do
 
     local ENTITY = FindMetaTable( 'Entity' )
