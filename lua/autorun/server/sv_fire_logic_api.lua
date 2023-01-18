@@ -1,13 +1,11 @@
 --[[
 
-    Title: Finally a normal fire behavior!
+    Title: Improved Fire Logic & API
     Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=2805142659
     GitHub: https://github.com/PrikolMen/gmod_fire_extinguishing
     Author: https://steamcommunity.com/id/PrikolMen/
 
 --]]
-
-local addonName = 'Finally a normal fire behavior!'
 
 do
 
@@ -66,18 +64,13 @@ do
 
         do
 
-            local extinguish_snd = CreateConVar( 'extinguish_sound', '1', FCVAR_ARCHIVE + FCVAR_LUA_SERVER, ' - Enable entites extinguishing sound', 0, 1 ):GetBool()
-            cvars.AddChangeCallback('extinguish_sound', function( name, old, new )
-                extinguish_snd = new == '1'
-            end, addonName)
-
-            local sound_path = 'player/flame_out.ogg'
+            local extinguishSound = CreateConVar( 'sv_extinguish_sound', '1', FCVAR_ARCHIVE, ' - Enable entites extinguishing sound', 0, 1 )
             local math_random = math.random
             local CHAN_ITEM = CHAN_ITEM
 
             function ENTITY:Extinguish()
-                if self:IsOnFire() and extinguish_snd then
-                    self:EmitSound( sound_path, math_random( 55, 65 ), math_random( 60, 180 ), 1, CHAN_ITEM )
+                if self:IsOnFire() and extinguishSound:GetBool() then
+                    self:EmitSound( 'player/flame_out.ogg', math_random( 55, 65 ), math_random( 60, 180 ), 1, CHAN_ITEM )
                 end
 
                 return self:SourceExtinguish()
@@ -94,7 +87,7 @@ do
     local hook_Run = hook.Run
     local DMG_BURN = DMG_BURN
 
-    hook.Add('EntityTakeDamage', addonName, function( ent, dmg )
+    hook.Add('EntityTakeDamage', 'Fire API - Entity Burns', function( ent, dmg )
         if (bit_band( dmg:GetDamageType(), DMG_BURN ) == DMG_BURN) and ent:IsFlammable() and ent:IsOnFire() then
             return hook_Run( 'EntityBurns', ent, dmg )
         end
@@ -102,17 +95,9 @@ do
 
 end
 
-hook.Add('EntityBurns', 'Extinguish in Water', function( ent )
+hook.Add('EntityBurns', 'Fire API - Extinguish in water', function( ent )
     if (ent:WaterLevel() > 0) then
         ent:Extinguish()
         return true
-    end
-end)
-
-MsgN( '[' .. addonName .. '] I\'m ready!' )
-timer.Simple(0, function()
-    if (vFireMessage ~= nil) then
-        MsgN( '[' .. addonName .. '] Oh, hello vFire!' )
-        vFireMessage( 'Hello, ' .. addonName )
     end
 end)
