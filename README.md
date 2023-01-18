@@ -10,19 +10,22 @@ Works with any entites.
 ### Hook called if entity takes a fire damage.
 - [GM](https://wiki.facepunch.com/gmod/GM_Hooks):EntityBurns( [`Entity`](https://wiki.facepunch.com/gmod/Entity) ent, [`DamageInfo`](https://wiki.facepunch.com/gmod/Global.DamageInfo) dmg )
 
+### Hook is called if the burning entity will be submerged in water (if return false, it will burn under water).
+- [GM](https://wiki.facepunch.com/gmod/GM_Hooks):OnEntityExtinguishInWater( [`Entity`](https://wiki.facepunch.com/gmod/Entity) ent )
+
 ### Entity method for check flammable.
 - [ENTITY](https://wiki.facepunch.com/gmod/Entity):IsFlammable()
 
 ### Entity method for check can ignite that entity.
 - [ENTITY](https://wiki.facepunch.com/gmod/Entity):CanIgnite()
 
-### Original Extinguish (Ignores all checks, can extinguish anything)
+### Original Extinguish (Ignores all checks, can extinguish anything).
 - [ENTITY](https://wiki.facepunch.com/gmod/Entity):SourceExtinguish()
 
 ### Extinguishes the essence if physically possible. 
 - [ENTITY](https://wiki.facepunch.com/gmod/Entity):Extinguish()
 
-### Original Ignite (Ignores all checks, can ignite anything)
+### Original Ignite (Ignores all checks, can ignite anything).
 - [ENTITY](https://wiki.facepunch.com/gmod/Entity):SourceIgnite()
 
 ### A smart ignite, can not set fire to something that can not burn.
