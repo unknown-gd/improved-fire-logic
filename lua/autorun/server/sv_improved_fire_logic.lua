@@ -82,21 +82,26 @@ end
 
 do
 
-    local bit_band = bit.band
     local hook_Run = hook.Run
-    local DMG_BURN = DMG_BURN
 
-    hook.Add('EntityTakeDamage', 'Fire API - Entity Burns', function( ent, dmg )
-        if (bit_band( dmg:GetDamageType(), DMG_BURN ) == DMG_BURN) and ent:IsFlammable() and ent:IsOnFire() then
-            return hook_Run( 'EntityBurns', ent, dmg )
+    do
+
+        local bit_band = bit.band
+        local DMG_BURN = DMG_BURN
+
+        hook.Add('EntityTakeDamage', 'Fire API - Entity Burns', function( ent, dmg )
+            if (bit_band( dmg:GetDamageType(), DMG_BURN ) == DMG_BURN) and ent:IsFlammable() and ent:IsOnFire() then
+                return hook_Run( 'EntityBurns', ent, dmg )
+            end
+        end)
+
+    end
+
+    hook.Add('EntityBurns', 'Fire API - Extinguish in water', function( ent )
+        if (ent:WaterLevel() > 0) and (hook_Run( 'OnEntityExtinguishInWater', ent ) ~= false) then
+            ent:Extinguish()
+            return true
         end
     end)
 
 end
-
-hook.Add('EntityBurns', 'Fire API - Extinguish in water', function( ent )
-    if (ent:WaterLevel() > 0) then
-        ent:Extinguish()
-        return true
-    end
-end)
