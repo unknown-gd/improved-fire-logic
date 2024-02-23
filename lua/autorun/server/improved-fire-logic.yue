@@ -1,0 +1,104 @@
+addonName = "Improved Fire Logic"
+ENTITY = FindMetaTable( "Entity" )
+
+:WaterLevel, :IsOnFire, :IsNPC, :GetMaterialType = ENTITY
+:Run, :Add = hook
+CurTime = CurTime
+
+flammableMaterials = list.GetForEdit( "IFL - Flammable Materials", false )
+flammableMaterials[ MAT_BLOODYFLESH ] = true
+flammableMaterials[ MAT_ALIENFLESH ] = true
+flammableMaterials[ MAT_ANTLION ] = true
+flammableMaterials[ MAT_FOLIAGE ] = true
+flammableMaterials[ MAT_PLASTIC ] = true
+flammableMaterials[ MAT_GRASS ] = true
+flammableMaterials[ MAT_FLESH ] = true
+flammableMaterials[ MAT_WOOD ] = true
+
+-- Strange fact, but all sofas are made of earth :|
+flammableMaterials[ MAT_DIRT ] = true
+
+IsFlammable = nil
+do
+
+    cache = {}
+
+    IsFlammable = ( entity ) ->
+        result = cache[ entity\GetModel! ]
+        if result == nil
+            result = false
+            :ModelKeyValues = util.GetModelInfo( entity\GetModel! )
+            if ModelKeyValues ~= nil
+                :fire_interactions = util.KeyValuesToTable( ModelKeyValues )
+                if fire_interactions ~= nil
+                    result = fire_interactions.flammable == "yes"
+
+            cache[ entity\GetModel! ] = result
+
+        return result
+
+    ENTITY.IsFlammable = IsFlammable
+
+Add "AllowEntityIgnite", addonName, ( entity ) ->
+    if IsNPC( entity ) or ( entity\IsPlayer! and entity\Alive! ) or IsFlammable( entity )
+        return
+
+    if WaterLevel( entity ) > 1 or not flammableMaterials[ GetMaterialType( entity ) ]
+        return false
+
+sourceIgnite = ENTITY.SourceIgnite
+unless isfunction( sourceIgnite )
+    sourceIgnite = ENTITY.Ignite
+    ENTITY.SourceIgnite = sourceIgnite
+
+ENTITY.Ignite = ( entity, length, radius ) ->
+    if Run( "AllowEntityIgnite", entity ) == false
+        return false
+
+    entity.m_fIgniteStart = CurTime!
+    entity.m_fIgniteLength = length
+    entity.m_iIgniteRadius = radius
+
+    sourceIgnite( entity, length, radius )
+    return true
+
+sourceExtinguish = ENTITY.SourceExtinguish
+unless isfunction( sourceExtinguish )
+    sourceExtinguish = ENTITY.Extinguish
+    ENTITY.SourceExtinguish = sourceExtinguish
+
+ENTITY.Extinguish = ( entity, ... ) ->
+    if Run( "AllowEntityExtinguish", entity ) == false
+        return false
+
+    entity.m_fLastExtinguish = CurTime!
+
+    Run( "EntityExtinguish", entity )
+    sourceExtinguish( entity, ... )
+    return true
+
+do
+
+    extinguishSound = CreateConVar( "sv_extinguish_sound", "1", FCVAR_ARCHIVE, " - Enable entites extinguishing sound", 0, 1 )
+    CHAN_STATIC = CHAN_STATIC
+    :random = math
+
+    Add "EntityExtinguish", addonName, ( entity ) ->
+        if IsOnFire( entity ) and WaterLevel( entity ) > 1 and extinguishSound\GetBool!
+            entity\EmitSound( "player/flame_out.ogg", random( 55, 65 ), random( 60, 180 ), 1, CHAN_STATIC )
+
+do
+
+    DMG_BURN = DMG_BURN
+    :band = bit
+
+    Add "EntityTakeDamage", addonName, ( entity, damageInfo ) ->
+        if not IsOnFire( entity ) or band( damageInfo\GetDamageType!, DMG_BURN ) == 0
+            return
+
+        return Run( "EntityBurns", entity, damageInfo )
+
+Add "EntityBurns", addonName, ( entity, damageInfo ) ->
+    if Run( "AllowEntityIgnite", entity ) == false or WaterLevel( entity ) > 1
+        entity\Extinguish!
+        return true
