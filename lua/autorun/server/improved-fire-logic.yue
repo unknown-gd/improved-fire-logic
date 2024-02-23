@@ -142,6 +142,15 @@ Add "EntityBurns", "Water Extinguish", ( entity, damageInfo ) ->
 
 do
 
+    :Length = FindMetaTable( "Vector" )
+    :GetVelocity = ENTITY
+
+    Add "EntityBurns", "Hight Speed Extinguish", ( entity, damageInfo ) ->
+        if Length( GetVelocity( entity ) ) > 1500 and entity\Extinguish!
+            return true
+
+do
+
     ifl_water_extinguish_sound = CreateConVar( "ifl_water_extinguish_sound", "1", bit.bor( FCVAR_ARCHIVE, FCVAR_NOTIFY ), "If the value is set to 1, extinguishing entities in water will emit specific sound.", 0, 1 )
     CHAN_STATIC = CHAN_STATIC
     :random = math
