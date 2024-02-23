@@ -1,11 +1,14 @@
-addonName = "Improved Fire Logic"
+addonName = "Improved Fire Logic & API"
+resource.AddWorkshop( "2805142659" )
 ENTITY = FindMetaTable( "Entity" )
 
-:WaterLevel, :IsOnFire, :IsNPC, :GetMaterialType = ENTITY
+flammableMaterials = list.GetForEdit( "IFL - Flammable Materials", false )
+:WaterLevel, :IsOnFire, :GetMaterialType, :EntIndex = ENTITY
 :Run, :Add = hook
 CurTime = CurTime
 
-flammableMaterials = list.GetForEdit( "IFL - Flammable Materials", false )
+-- Default unflammable materials
+-- https://wiki.facepunch.com/gmod/Enums/MAT
 flammableMaterials[ MAT_BLOODYFLESH ] = true
 flammableMaterials[ MAT_ALIENFLESH ] = true
 flammableMaterials[ MAT_ANTLION ] = true
@@ -15,15 +18,15 @@ flammableMaterials[ MAT_GRASS ] = true
 flammableMaterials[ MAT_FLESH ] = true
 flammableMaterials[ MAT_WOOD ] = true
 
--- Strange fact, but all sofas are made of earth :|
+-- Strangely, but all sofa's are made of earth :||
 flammableMaterials[ MAT_DIRT ] = true
 
-IsFlammable = nil
+IsFlammableModel = nil
 do
 
     cache = {}
 
-    IsFlammable = ( entity ) ->
+    IsFlammableModel = ( entity ) ->
         result = cache[ entity\GetModel! ]
         if result == nil
             result = false
@@ -37,55 +40,89 @@ do
 
         return result
 
-    ENTITY.IsFlammable = IsFlammable
+    ENTITY.IsFlammableModel = IsFlammableModel
 
-Add "AllowEntityIgnite", addonName, ( entity ) ->
-    if IsNPC( entity ) or ( entity\IsPlayer! and entity\Alive! ) or IsFlammable( entity )
+Add "AllowEntityIgnite", "Default Fire Logic", ( entity ) ->
+    if WaterLevel( entity ) > 1
+        return false
+
+    if entity\IsNPC!
         return
 
-    if WaterLevel( entity ) > 1 or not flammableMaterials[ GetMaterialType( entity ) ]
+    if entity\IsPlayer!
+        if entity\Alive!
+            return
+
         return false
 
-sourceIgnite = ENTITY.SourceIgnite
-unless isfunction( sourceIgnite )
-    sourceIgnite = ENTITY.Ignite
-    ENTITY.SourceIgnite = sourceIgnite
+    if IsFlammableModel( entity )
+        return
 
-ENTITY.Ignite = ( entity, length, radius ) ->
-    if Run( "AllowEntityIgnite", entity ) == false
+    unless flammableMaterials[ GetMaterialType( entity ) ]
         return false
 
-    entity.m_fIgniteStart = CurTime!
-    entity.m_fIgniteLength = length
-    entity.m_iIgniteRadius = radius
+timer.Simple 0, ->
 
-    sourceIgnite( entity, length, radius )
-    return true
+    -- Ignite
+    sourceIgnite = ENTITY.SourceIgnite
+    unless isfunction( sourceIgnite )
+        sourceIgnite = ENTITY.Ignite
+        ENTITY.SourceIgnite = sourceIgnite
 
-sourceExtinguish = ENTITY.SourceExtinguish
-unless isfunction( sourceExtinguish )
-    sourceExtinguish = ENTITY.Extinguish
-    ENTITY.SourceExtinguish = sourceExtinguish
+    igniteEntity = nil
+    do
 
-ENTITY.Extinguish = ( entity, ... ) ->
-    if Run( "AllowEntityExtinguish", entity ) == false
-        return false
+        :Create, :Remove = timer
 
-    entity.m_fLastExtinguish = CurTime!
+        igniteEntity = ( entity, length, radius ) ->
+            timerName = "Source::IgniteEntity #" .. EntIndex( entity )
+            Create timerName, length, 1, ->
+                Remove timerName
 
-    Run( "EntityExtinguish", entity )
-    sourceExtinguish( entity, ... )
-    return true
+                if entity\IsValid!
+                    entity\Extinguish!
 
-do
+            sourceIgnite( entity, length, radius )
 
-    extinguishSound = CreateConVar( "sv_extinguish_sound", "1", FCVAR_ARCHIVE, " - Enable entites extinguishing sound", 0, 1 )
-    CHAN_STATIC = CHAN_STATIC
-    :random = math
+    ENTITY.Ignite = ( entity, length, radius ) ->
+        if IsOnFire( entity ) or Run( "AllowEntityIgnite", entity ) == false
+            return false
 
-    Add "EntityExtinguish", addonName, ( entity ) ->
-        if IsOnFire( entity ) and WaterLevel( entity ) > 1 and extinguishSound\GetBool!
-            entity\EmitSound( "player/flame_out.ogg", random( 55, 65 ), random( 60, 180 ), 1, CHAN_STATIC )
+        unless length
+            length = 1
+
+        unless radius
+            radius = 0
+
+        entity.m_fIgniteStart = CurTime!
+        entity.m_fIgniteLength = length
+        entity.m_iIgniteRadius = radius
+
+        igniteEntity( entity, length, radius )
+        return true
+
+    -- Extinguish
+    sourceExtinguish = ENTITY.SourceExtinguish
+    unless isfunction( sourceExtinguish )
+        sourceExtinguish = ENTITY.Extinguish
+        ENTITY.SourceExtinguish = sourceExtinguish
+
+    ENTITY.Extinguish = ( entity, ... ) ->
+        unless IsOnFire( entity )
+            return false
+
+        if Run( "AllowEntityExtinguish", entity ) == false
+            if entity.m_fIgniteStart and ( CurTime! - entity.m_fIgniteStart ) < ( entity.m_fIgniteLength + 0.25 )
+                entity.m_fIgniteStart = CurTime!
+                igniteEntity( entity, entity.m_fIgniteLength or 1, entity.m_iIgniteRadius or 0 )
+
+            return false
+
+        entity.m_fLastExtinguish = CurTime!
+
+        Run( "EntityExtinguish", entity )
+        sourceExtinguish( entity, ... )
+        return true
 
 do
 
@@ -98,7 +135,17 @@ do
 
         return Run( "EntityBurns", entity, damageInfo )
 
-Add "EntityBurns", addonName, ( entity, damageInfo ) ->
-    if Run( "AllowEntityIgnite", entity ) == false or WaterLevel( entity ) > 1
-        entity\Extinguish!
+-- Water extinguish
+Add "EntityBurns", "Water Extinguish", ( entity, damageInfo ) ->
+    if WaterLevel( entity ) > 1 and entity\Extinguish!
         return true
+
+do
+
+    ifl_water_extinguish_sound = CreateConVar( "ifl_water_extinguish_sound", "1", bit.bor( FCVAR_ARCHIVE, FCVAR_NOTIFY ), "If the value is set to 1, extinguishing entities in water will emit specific sound.", 0, 1 )
+    CHAN_STATIC = CHAN_STATIC
+    :random = math
+
+    Add "OnEntityWaterLevelChanged", "Water Extinguish", ( entity, oldWaterLevel, newWaterLevel ) ->
+        if newWaterLevel > 1 and oldWaterLevel < newWaterLevel and entity\Extinguish! and ifl_water_extinguish_sound\GetBool!
+            entity\EmitSound( "player/flame_out.ogg", random( 50, 75 ), random( 60, 180 ), 1, CHAN_STATIC )
