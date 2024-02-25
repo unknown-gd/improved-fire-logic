@@ -176,7 +176,7 @@ do
 
 do
 
-    ifl_water_extinguish_sound = CreateConVar( "ifl_water_extinguish_sound", "1", bit.bor( FCVAR_ARCHIVE, FCVAR_NOTIFY ), "If the value is set to 1, extinguishing entities in water will emit specific sound.", 0, 1 )
+    ifl_water_extinguish_sound = CreateConVar( "ifl_water_extinguish_sound", "1", bit.bor( FCVAR_ARCHIVE, FCVAR_NOTIFY ), "If enabled, extinguishing entities in water will emit specific sound.", 0, 1 )
     CHAN_STATIC = CHAN_STATIC
     :random = math
 
