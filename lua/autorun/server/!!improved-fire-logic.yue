@@ -1,0 +1,187 @@
+addonName = "Improved Fire Logic & API"
+resource.AddWorkshop( "2805142659" )
+ENTITY = FindMetaTable( "Entity" )
+
+:WaterLevel, :IsOnFire, :GetMaterialType, :EntIndex = ENTITY
+:Alive = FindMetaTable( "Player" )
+:Run, :Add = hook
+CurTime = CurTime
+
+-- Default unflammable materials
+-- https://wiki.facepunch.com/gmod/Enums/MAT
+flammableMaterials = list.GetForEdit( "IFL - Flammable Materials", false )
+flammableMaterials[ MAT_BLOODYFLESH ] = true
+flammableMaterials[ MAT_ALIENFLESH ] = true
+flammableMaterials[ MAT_ANTLION ] = true
+flammableMaterials[ MAT_FOLIAGE ] = true
+flammableMaterials[ MAT_PLASTIC ] = true
+flammableMaterials[ MAT_GRASS ] = true
+flammableMaterials[ MAT_FLESH ] = true
+flammableMaterials[ MAT_WOOD ] = true
+
+-- Strangely, but all sofa's are made of earth :||
+flammableMaterials[ MAT_DIRT ] = true
+
+IsFlammableModel = nil
+do
+
+    cache = {}
+
+    IsFlammableModel = ( entity ) ->
+        result = cache[ entity\GetModel! ]
+        if result == nil
+            result = false
+            :ModelKeyValues = util.GetModelInfo( entity\GetModel! )
+            if ModelKeyValues ~= nil
+                :fire_interactions = util.KeyValuesToTable( ModelKeyValues )
+                if fire_interactions ~= nil
+                    result = fire_interactions.flammable == "yes"
+
+            cache[ entity\GetModel! ] = result
+
+        return result
+
+    ENTITY.IsFlammableModel = IsFlammableModel
+
+Add( "AllowEntityIgnite", "Default Fire Logic", ( entity ) ->
+    if WaterLevel( entity ) > 1
+        return false
+
+    if entity\IsNPC!
+        return
+
+    if entity\IsPlayer!
+        if Alive( entity )
+            return
+
+        return false
+
+    if IsFlammableModel( entity )
+        return
+
+    unless flammableMaterials[ GetMaterialType( entity ) ]
+        return false
+
+PRE_HOOK_RETURN )
+
+sourceIgnite = ENTITY.SourceIgnite
+unless isfunction( sourceIgnite )
+    sourceIgnite = ENTITY.Ignite
+    ENTITY.SourceIgnite = sourceIgnite
+
+igniteEntity = nil
+do
+
+    :Create, :Remove = timer
+
+    igniteEntity = ( entity, length, radius ) ->
+        timerName = "Source::IgniteEntity #" .. EntIndex( entity )
+        Create timerName, length, 1, ->
+            Remove timerName
+
+            if entity\IsValid!
+                entity\Extinguish!
+
+        sourceIgnite( entity, length, radius )
+
+ENTITY.Ignite = ( entity, length, radius ) ->
+    if IsOnFire( entity ) or Run( "AllowEntityIgnite", entity ) == false
+        return false
+
+    unless length
+        length = 1
+
+    unless radius
+        radius = 0
+
+    entity.m_fIgniteStart = CurTime!
+    entity.m_fIgniteLength = length
+    entity.m_iIgniteRadius = radius
+
+    igniteEntity( entity, length, radius )
+    return true
+
+sourceExtinguish = ENTITY.SourceExtinguish
+unless isfunction( sourceExtinguish )
+    sourceExtinguish = ENTITY.Extinguish
+    ENTITY.SourceExtinguish = sourceExtinguish
+
+ENTITY.Extinguish = ( entity, ... ) ->
+    unless IsOnFire( entity )
+        return false
+
+    if Run( "AllowEntityExtinguish", entity ) == false
+        if entity.m_fIgniteStart and ( CurTime! - entity.m_fIgniteStart ) < ( entity.m_fIgniteLength + 0.25 )
+            entity.m_fIgniteStart = CurTime!
+            igniteEntity( entity, entity.m_fIgniteLength or 1, entity.m_iIgniteRadius or 0 )
+
+        return false
+
+    entity.m_fLastExtinguish = CurTime!
+
+    Run( "EntityExtinguish", entity )
+    sourceExtinguish( entity, ... )
+    return true
+
+do
+
+    CTakeDamageInfo = FindMetaTable( "CTakeDamageInfo" )
+    :GetDamageType = CTakeDamageInfo
+    DMG_BURN = DMG_BURN
+    :band = bit
+
+    CTakeDamageInfo.IsBurnDamage = ( damageInfo ) ->
+        return band( GetDamageType( damageInfo ), DMG_BURN ) ~= 0
+
+    CTakeDamageInfo.IsFireDamage = CTakeDamageInfo.IsBurnDamage
+
+    Add( "EntityTakeDamage", addonName, ( entity, damageInfo ) ->
+        if band( GetDamageType( damageInfo ), DMG_BURN ) == 0
+            return
+
+        if IsOnFire( entity )
+            result = Run( "EntityBurns", entity, damageInfo )
+            if result ~= nil
+                return result
+
+        return Run( "EntityTakeFireDamage", entity, damageInfo )
+
+    PRE_HOOK_RETURN )
+
+do
+
+    :IsSolid = ENTITY
+
+    Add( "EntityBurns", "Fire Bugs Fix", ( entity ) ->
+        if IsSolid( entity ) and ( not entity\IsPlayer! or Alive( entity ) )
+            return
+
+        sourceExtinguish( entity )
+        return true
+
+    PRE_HOOK_RETURN )
+
+Add "EntityBurns", "Water Extinguish", ( entity, damageInfo ) ->
+    if WaterLevel( entity ) > 1 and entity\Extinguish!
+        return true
+
+do
+
+    :Length = FindMetaTable( "Vector" )
+    :GetVelocity = ENTITY
+
+    Add "EntityBurns", "Hight Speed Extinguish", ( entity, damageInfo ) ->
+        if Length( GetVelocity( entity ) ) > ( entity\IsPlayer! and 800 or 1500 ) and entity\Extinguish!
+            return true
+
+do
+
+    ifl_water_extinguish_sound = CreateConVar( "ifl_water_extinguish_sound", "1", bit.bor( FCVAR_ARCHIVE, FCVAR_NOTIFY ), "If the value is set to 1, extinguishing entities in water will emit specific sound.", 0, 1 )
+    CHAN_STATIC = CHAN_STATIC
+    :random = math
+
+    Add( "OnEntityWaterLevelChanged", "Water Extinguish", ( entity, oldWaterLevel, newWaterLevel ) ->
+        if newWaterLevel > 1 and oldWaterLevel < newWaterLevel and entity\Extinguish! and ifl_water_extinguish_sound\GetBool!
+            entity\EmitSound( "player/flame_out.ogg", random( 50, 75 ), random( 60, 180 ), 1, CHAN_STATIC )
+
+    PRE_HOOK )
