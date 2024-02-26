@@ -64,64 +64,70 @@ Add( "AllowEntityIgnite", "Default Fire Logic", ( entity ) ->
 
 PRE_HOOK_RETURN )
 
-sourceIgnite = ENTITY.SourceIgnite
-unless isfunction( sourceIgnite )
-    sourceIgnite = ENTITY.Ignite
-    ENTITY.SourceIgnite = sourceIgnite
+timer.Simple 0.25, ->
+    sourceIgnite = ENTITY.SourceIgnite
+    unless isfunction( sourceIgnite )
+        sourceIgnite = ENTITY.Ignite
+        ENTITY.SourceIgnite = sourceIgnite
 
-igniteEntity = nil
-do
+    igniteEntity = nil
+    do
 
-    :Create, :Remove = timer
+        :Create, :Remove, :Exists = timer
 
-    igniteEntity = ( entity, length, radius ) ->
-        timerName = "Source::IgniteEntity #" .. EntIndex( entity )
-        Create timerName, length, 1, ->
-            Remove timerName
+        Add( "EntityRemoved", addonName, ( entity ) ->
+            timerName = "Source::IgniteEntity #" .. EntIndex( entity )
+            if Exists( timerName )
+                Remove( timerName )
+                return
 
-            if entity\IsValid!
-                entity\Extinguish!
+        PRE_HOOK )
 
-        sourceIgnite( entity, length, radius )
+        igniteEntity = ( entity, length, radius ) ->
+            Create "Source::IgniteEntity #" .. EntIndex( entity ), length, 1, ->
+                if entity\IsValid!
+                    entity\Extinguish!
 
-ENTITY.Ignite = ( entity, length, radius ) ->
-    if IsOnFire( entity ) or Run( "AllowEntityIgnite", entity ) == false
-        return false
+            sourceIgnite( entity, length, radius )
 
-    unless length
-        length = 1
+    ENTITY.Ignite = ( entity, length, radius, force ) ->
+        if not force and ( IsOnFire( entity ) or Run( "AllowEntityIgnite", entity ) == false )
+            return false
 
-    unless radius
-        radius = 0
+        unless length
+            length = 1
 
-    entity.m_fIgniteStart = CurTime!
-    entity.m_fIgniteLength = length
-    entity.m_iIgniteRadius = radius
+        unless radius
+            radius = 0
 
-    igniteEntity( entity, length, radius )
-    return true
+        entity.m_fIgniteStart = CurTime!
+        entity.m_fIgniteLength = length
+        entity.m_iIgniteRadius = radius
 
-sourceExtinguish = ENTITY.SourceExtinguish
-unless isfunction( sourceExtinguish )
-    sourceExtinguish = ENTITY.Extinguish
-    ENTITY.SourceExtinguish = sourceExtinguish
+        igniteEntity( entity, length, radius )
+        return true
 
-ENTITY.Extinguish = ( entity, ... ) ->
-    unless IsOnFire( entity )
-        return false
+    sourceExtinguish = ENTITY.SourceExtinguish
+    unless isfunction( sourceExtinguish )
+        sourceExtinguish = ENTITY.Extinguish
+        ENTITY.SourceExtinguish = sourceExtinguish
 
-    if Run( "AllowEntityExtinguish", entity ) == false
-        if entity.m_fIgniteStart and ( CurTime! - entity.m_fIgniteStart ) < ( entity.m_fIgniteLength + 0.25 )
-            entity.m_fIgniteStart = CurTime!
-            igniteEntity( entity, entity.m_fIgniteLength or 1, entity.m_iIgniteRadius or 0 )
+    ENTITY.Extinguish = ( entity, force ) ->
+        unless force or IsOnFire( entity )
+            return false
 
-        return false
+        if not force and Run( "AllowEntityExtinguish", entity ) == false
+            if entity.m_fIgniteStart and ( CurTime! - entity.m_fIgniteStart ) < ( entity.m_fIgniteLength + 0.25 )
+                entity.m_fIgniteStart = CurTime!
+                igniteEntity( entity, entity.m_fIgniteLength or 1, entity.m_iIgniteRadius or 0 )
 
-    entity.m_fLastExtinguish = CurTime!
+            return false
 
-    Run( "EntityExtinguish", entity )
-    sourceExtinguish( entity, ... )
-    return true
+        entity.m_fLastExtinguish = CurTime!
+
+        sourceExtinguish( entity )
+        Run( "EntityExtinguished", entity )
+        return true
 
 do
 
@@ -156,7 +162,7 @@ do
         if IsSolid( entity ) and ( not entity\IsPlayer! or Alive( entity ) )
             return
 
-        sourceExtinguish( entity )
+        entity\Extinguish( true )
         return true
 
     PRE_HOOK_RETURN )
