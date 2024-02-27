@@ -25,19 +25,30 @@ flammableMaterials[ MAT_DIRT ] = true
 IsFlammableModel = nil
 do
 
-    cache = {}
+    cache = {
+        [""]: false
+    }
 
     IsFlammableModel = ( entity ) ->
-        result = cache[ entity\GetModel! ]
+        modelPath = entity\GetModel!
+        unless modelPath
+            return false
+
+        result = cache[ modelPath ]
         if result == nil
             result = false
-            :ModelKeyValues = util.GetModelInfo( entity\GetModel! )
-            if ModelKeyValues ~= nil
-                :fire_interactions = util.KeyValuesToTable( ModelKeyValues )
-                if fire_interactions ~= nil
-                    result = fire_interactions.flammable == "yes"
 
-            cache[ entity\GetModel! ] = result
+            value = util.GetModelInfo( modelPath )
+            if value ~= nil
+                value = value.ModelKeyValues
+                if value ~= nil
+                    value = util.KeyValuesToTable( value )
+                    if value ~= nil
+                        value = value.fire_interactions
+                        if value ~= nil
+                            result = value.flammable == "yes"
+
+            cache[ modelPath ] = result
 
         return result
 
@@ -129,30 +140,11 @@ timer.Simple 0.25, ->
         Run( "EntityExtinguished", entity )
         return true
 
-do
+Add( "EntityTakeDamage", addonName, ( entity, damageInfo ) ->
+    if IsOnFire( entity )
+        return Run( "EntityBurns", entity, damageInfo )
 
-    CTakeDamageInfo = FindMetaTable( "CTakeDamageInfo" )
-    :GetDamageType = CTakeDamageInfo
-    DMG_BURN = DMG_BURN
-    :band = bit
-
-    CTakeDamageInfo.IsBurnDamage = ( damageInfo ) ->
-        return band( GetDamageType( damageInfo ), DMG_BURN ) ~= 0
-
-    CTakeDamageInfo.IsFireDamage = CTakeDamageInfo.IsBurnDamage
-
-    Add( "EntityTakeDamage", addonName, ( entity, damageInfo ) ->
-        if band( GetDamageType( damageInfo ), DMG_BURN ) == 0
-            return
-
-        if IsOnFire( entity )
-            result = Run( "EntityBurns", entity, damageInfo )
-            if result ~= nil
-                return result
-
-        return Run( "EntityTakeFireDamage", entity, damageInfo )
-
-    PRE_HOOK_RETURN )
+PRE_HOOK_RETURN )
 
 do
 
