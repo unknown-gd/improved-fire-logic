@@ -2,6 +2,12 @@ addonName = "Improved Fire Logic & API"
 resource.AddWorkshop( "2805142659" )
 ENTITY = FindMetaTable( "Entity" )
 
+-- ULib support ( I really don't like this )
+if file.Exists( "ulib/shared/hook.lua", "LUA" )
+    include( "ulib/shared/hook.lua" )
+
+PRE_HOOK = PRE_HOOK or HOOK_MONITOR_HIGH
+
 :WaterLevel, :IsOnFire, :GetMaterialType, :EntIndex = ENTITY
 :Alive = FindMetaTable( "Player" )
 :Run, :Add = hook
@@ -54,7 +60,7 @@ do
 
     ENTITY.IsFlammableModel = IsFlammableModel
 
-Add( "AllowEntityIgnite", "Default Fire Logic", ( entity ) ->
+Add "AllowEntityIgnite", "Default Fire Logic", ( entity ) ->
     if WaterLevel( entity ) > 1
         return false
 
@@ -72,8 +78,6 @@ Add( "AllowEntityIgnite", "Default Fire Logic", ( entity ) ->
 
     unless flammableMaterials[ GetMaterialType( entity ) ]
         return false
-
-PRE_HOOK_RETURN )
 
 timer.Simple 0.25, ->
     sourceIgnite = ENTITY.SourceIgnite
@@ -140,24 +144,19 @@ timer.Simple 0.25, ->
         Run( "EntityExtinguished", entity )
         return true
 
-Add( "EntityTakeDamage", addonName, ( entity, damageInfo ) ->
-    if IsOnFire( entity )
-        return Run( "EntityBurns", entity, damageInfo )
-
-PRE_HOOK_RETURN )
-
 do
 
     :IsSolid = ENTITY
 
-    Add( "EntityBurns", "Fire Bugs Fix", ( entity ) ->
-        if IsSolid( entity ) and ( not entity\IsPlayer! or Alive( entity ) )
-            return
+    Add( "EntityTakeDamage", addonName, ( entity, damageInfo ) ->
+        if IsOnFire( entity )
+            if not IsSolid( entity ) or ( entity\IsPlayer! and not Alive( entity ) )
+                entity\Extinguish( true )
+                return
 
-        entity\Extinguish( true )
-        return true
+            return Run( "EntityBurns", entity, damageInfo )
 
-    PRE_HOOK_RETURN )
+    PRE_HOOK_RETURN or HOOK_MONITOR_HIGH )
 
 Add "EntityBurns", "Water Extinguish", ( entity, damageInfo ) ->
     if WaterLevel( entity ) > 1 and entity\Extinguish!
