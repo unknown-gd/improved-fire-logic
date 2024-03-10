@@ -179,6 +179,6 @@ do
 
     Add( "OnEntityWaterLevelChanged", "Water Extinguish", ( entity, oldWaterLevel, newWaterLevel ) ->
         if newWaterLevel > 1 and oldWaterLevel < newWaterLevel and entity\Extinguish! and ifl_water_extinguish_sound\GetBool!
-            entity\EmitSound( "player/flame_out.ogg", random( 50, 75 ), random( 60, 180 ), 1, CHAN_STATIC )
+            entity\EmitSound( "General.StopBurning", random( 50, 75 ), random( 60, 180 ), 1, CHAN_STATIC, 0, 1 )
 
     PRE_HOOK )
